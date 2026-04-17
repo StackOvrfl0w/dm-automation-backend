@@ -45,7 +45,7 @@ const getFlow = async (req, res, next) => {
   try {
     const flow = await AutomationFlow.findOne({
       _id: req.params.id,
-      userId: req.userId,
+      userId: req.query.userId,
     });
 
     if (!flow) {

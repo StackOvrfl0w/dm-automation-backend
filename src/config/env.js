@@ -3,6 +3,13 @@ require("dotenv").config();
 const memcacheServers =
   process.env.MEMCACHED_SERVERS || process.env.MEMCACHE_SERVERS || "127.0.0.1:11211";
 const memcacheTTLSeconds = parseInt(process.env.MEMCACHED_TTL_SECONDS || "300", 10);
+const parseBoolean = (value, defaultValue) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+};
 
 module.exports = {
   port: parseInt(process.env.PORT || "3001", 10),
@@ -12,6 +19,7 @@ module.exports = {
   memcache: {
     servers: memcacheServers,
     ttlSeconds: memcacheTTLSeconds,
+    required: parseBoolean(process.env.MEMCACHE_REQUIRED, process.env.NODE_ENV === 'production'),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
@@ -21,6 +29,7 @@ module.exports = {
   },
   meta: {
     appId: process.env.META_APP_ID,
+    facebookAppId: process.env.META_FACEBOOK_APP_ID || process.env.META_APP_ID,
     appSecret: process.env.META_APP_SECRET,
     webhookVerifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN,
     graphApiVersion: process.env.META_GRAPH_API_VERSION || "v21.0",

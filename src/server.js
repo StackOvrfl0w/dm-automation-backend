@@ -3,7 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { connectDB } = require('./config/database');
-const { initMemcache } = require('./config/memcache');
+const { initMemcache, isUsingInMemoryFallback } = require('./config/memcache');
 const config = require('./config/env');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
@@ -18,6 +18,31 @@ const leadsRoutes = require('./routes/leads');
 const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
+
+const listenWithFallback = (preferredPort) => {
+  const maxAttempts = config.nodeEnv === 'production' ? 1 : 10;
+
+  return new Promise((resolve, reject) => {
+    const tryListen = (offset) => {
+      const port = preferredPort + offset;
+      const server = app.listen(port, () => {
+        resolve({ server, port });
+      });
+
+      server.once('error', (error) => {
+        if (error.code === 'EADDRINUSE' && offset + 1 < maxAttempts) {
+          console.warn(`⚠ Port ${port} is in use, trying ${port + 1}...`);
+          tryListen(offset + 1);
+          return;
+        }
+
+        reject(error);
+      });
+    };
+
+    tryListen(0);
+  });
+};
 
 // Trust proxy
 app.set('trust proxy', 1);
@@ -73,18 +98,19 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    console.log('✓ MongoDB connected');
 
     // Initialize Memcached
     await initMemcache();
-    console.log('✓ Memcached connected');
+
+    if (isUsingInMemoryFallback()) {
+      console.warn('⚠ Running with in-memory cache fallback (not recommended for production)');
+    }
 
     // Start listening
     const PORT = config.port || 3001;
-    app.listen(PORT, () => {
-      console.log(`✓ Server running on port ${PORT}`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
+    const { port } = await listenWithFallback(PORT);
+    console.log(`✓ Server running on port ${port}`);
+    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
   } catch (error) {
     console.error('Failed to start server:', error.message);
     process.exit(1);
