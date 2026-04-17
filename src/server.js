@@ -16,6 +16,7 @@ const flowsRoutes = require('./routes/flows');
 const webhooksRoutes = require('./routes/webhooks');
 const leadsRoutes = require('./routes/leads');
 const dashboardRoutes = require('./routes/dashboard');
+const conversationsRoutes = require('./routes/conversations');
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use('/api/flows', flowsRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/conversations', conversationsRoutes);
 
 // 404 handler
 app.use((req, res) => {

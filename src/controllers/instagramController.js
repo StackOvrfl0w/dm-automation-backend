@@ -256,8 +256,41 @@ const disconnectAccount = async (req, res, next) => {
   }
 };
 
+const getConnectedAccounts = async (req, res, next) => {
+  try {
+    const accounts = await InstagramAccount.find({ userId: req.userId })
+      .select('-accessToken')
+      .sort({ connectedAt: -1 })
+      .lean();
+
+    const now = Date.now();
+    const accountsWithStatus = accounts.map((account) => {
+      const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt).getTime() : null;
+      const tokenExpiresInMs = expiresAt ? expiresAt - now : null;
+
+      return {
+        ...account,
+        tokenStatus:
+          tokenExpiresInMs === null
+            ? 'unknown'
+            : tokenExpiresInMs <= 0
+              ? 'expired'
+              : tokenExpiresInMs <= 24 * 60 * 60 * 1000
+                ? 'expiring_soon'
+                : 'valid',
+      };
+    });
+
+    return sendSuccess(res, { accounts: accountsWithStatus }, 'Connected accounts fetched', 200);
+  } catch (error) {
+    console.error('Get connected accounts error:', error.message);
+    next(error);
+  }
+};
+
 module.exports = {
   getConnectUrl,
   handleCallback,
   disconnectAccount,
+  getConnectedAccounts,
 };
